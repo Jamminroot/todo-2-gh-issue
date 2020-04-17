@@ -1,0 +1,9 @@
+﻿name: "TODO-2-gh-issue"
+description: "Converts code TODO comments to issues on GitHub"
+author: "Chichuk Dmitrii"
+runs:
+  using: "docker"
+  image: "Dockerfile"
+branding:
+  icon: "check-square"
+  color: "orange"
