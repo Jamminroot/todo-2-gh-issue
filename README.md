@@ -1,11 +1,10 @@
 # TODO-2-GH-Issue
 
-This action run through your recent changes and close an issue if relevant `TODO` comment was removed in a pushed commit, and convert all newly added TODO comments to GitHub issues.
+This action runs through your recent changes and closes all corresponding GitHub issues if relevant `TODO` comments were removed in a pushed commit, and converts all newly added TODO comments to GitHub issues.
 
 ## Usage
 
-Create a workflow file in your .github/workflows directory as follows:
-Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if your are going for default use case (running on the same repo the push even occured, and comparing with the most recent commit)
+Create a workflow file in your .github/workflows/ directory as follows:
  
 ### todos.yaml
 
@@ -30,13 +29,15 @@ Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if your are going for 
               TIMEOUT: 1000
             id: "todo"
 
+> **Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if you need the default use case (running on the same repo when the push even occur, and comparing with the most recent commit)**
+
 ### Inputs
 
 | Input    | Description |
 |----------|-------------|
 | `REPOSITORY` | Repository which action will be used on, e.g. 'jamminroot/my-awesome-repo'. |
-| `SHA_OLD` | The SHA of the commit to compare with. |
-| `SHA_NEW` | The SHA of the commit comparand commit. |
+| `OLD` | The SHA of the commit to compare with. |
+| `NEW` | The SHA of the commit comparand commit. |
 | `TOKEN` | The GitHub access token to allow us to retrieve, create and update issues. |
 | `TODO` | The label that will be used to identify TODO comments.|
 | `COMMENT` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
@@ -83,4 +84,8 @@ void method() {
 
 Changing the contents of TODO comment will close existing issue and create new one.
 
-This Action is build while looking at [Alstr's](https://github.com/alstr) great tool [todo-to-issue-action](https://github.com/alstr/todo-to-issue-action) (some changes were required for my specific case).
+
+### Thanks
+
+This Action is build while looking at [Alstr's](https://github.com/alstr) great tool [todo-to-issue-action](https://github.com/alstr/todo-to-issue-action) (some changes were required for my specific case), so huge thanks to him!
+Go check his tool out, too.
