@@ -9,4 +9,4 @@ RUN apk add --no-cache \
 WORKDIR /app
 COPY ./publish ./
 
-ENTRYPOINT ["./TODO-2-GH-Issue"]
+ENTRYPOINT ["./todo-2-gh-issue"]

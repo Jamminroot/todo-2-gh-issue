@@ -74,7 +74,6 @@ namespace Todo2GhIssue
 			var todos = new List<TodoItem>();
 			var lineNumber = 0;
 			var currFile = "";
-			var rec = false;
 			foreach (var line in diff)
 			{
 				var headerMatch = Regex.Match(line, DiffHeaderPattern, RegexOptions.IgnoreCase);
@@ -183,28 +182,44 @@ namespace Todo2GhIssue
 			var result = (List<Issue>)ser.ReadObject(sr);
 			return result;
 		}
-		
+
 		private static void Main(string[] args)
 		{
+			Console.WriteLine("Parsing parameters.");
 			var repo = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
+			Console.WriteLine("Repo:\t{0}", repo);
 			var oldSha = Environment.GetEnvironmentVariable("INPUT_OLD");
+			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			var newSha = Environment.GetEnvironmentVariable("INPUT_NEW");
+			Console.WriteLine("New SHA:\t{0}", newSha);
 			var token = Environment.GetEnvironmentVariable("INPUT_TOKEN");
+			Console.WriteLine("Token:\t{0}", "***" + token?.Substring(token.Length - 3));
 			var todoLabel = Environment.GetEnvironmentVariable("INPUT_TODO");
+			Console.WriteLine("TODO:\t{0}", todoLabel);
 			var commentPattern = Environment.GetEnvironmentVariable("INPUT_COMMENT");
+			Console.WriteLine("Comment re:\t{0}", commentPattern);
 			var ghIssueLabel = Environment.GetEnvironmentVariable("INPUT_LABEL");
+			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
 			var symbolsToTrim = Environment.GetEnvironmentVariable("INPUT_TRIM");
-			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout))
+			Console.WriteLine("Trim:\t{0}", symbolsToTrim);
+			if (!bool.TryParse(Environment.GetEnvironmentVariable("INPUT_NOPUBLISH"), out var nopublish))
 			{
-				timeout = 1000;
+				nopublish = false;
 			}
+			else
+			{
+				Console.WriteLine("No publishing result mode.");
+			}
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout)) { timeout = 1000; }
+			Console.WriteLine("Timeout:\t{0}", timeout);
+			Console.WriteLine("Getting diff.");
 			var diff = GetDiff(repo, token, oldSha, newSha);
 			var todos = GetTodoItems(diff, commentPattern, todoLabel, symbolsToTrim?.ToCharArray());
-			Console.WriteLine("Added TODOs:");
+			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t=>t.DiffType==TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
-			Console.WriteLine("Removed TODOs:");
+			Console.WriteLine("Parsed removed TODOs:");
 			foreach (var todoItem in todos.Where(t=>t.DiffType==TodoDiffType.Deletion)) { Console.WriteLine($"-\t{todoItem}"); }
-			HandleTodos(repo, token, newSha, ghIssueLabel, timeout, todos);
+			if (!nopublish) { HandleTodos(repo, token, newSha, ghIssueLabel, timeout, todos); }
 			Console.WriteLine("Finished updating issues.");
 		}
 	}

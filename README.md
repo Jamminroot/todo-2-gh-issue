@@ -36,8 +36,8 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | Input    | Description |
 |----------|-------------|
 | `REPOSITORY` | Repository which action will be used on, e.g. 'jamminroot/my-awesome-repo'. |
-| `OLD` | The SHA of the commit to compare with. |
-| `NEW` | The SHA of the commit comparand commit. |
+| `OLD` | The SHA of the comparand commit. |
+| `NEW` | The SHA of the new commit we compare diff with. |
 | `TOKEN` | The GitHub access token to allow us to retrieve, create and update issues. |
 | `TODO` | The label that will be used to identify TODO comments.|
 | `COMMENT` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
