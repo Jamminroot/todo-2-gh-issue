@@ -1,5 +1,5 @@
 ﻿name: "TODO-2-gh-issue"
-description: "Converts code TODO comments to issues on GitHub"
+description: "Converts code TODO comments to issues on GitHub. Allows to adjust a few settings to your needs - comment regex, TODO label, GH issue label and others."
 author: "Chichuk Dmitrii"
 runs:
   using: "docker"
