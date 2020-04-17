@@ -357,3 +357,6 @@ MigrationBackup/
 .ionide/
 
 .idea/
+
+build.ps1
+docker_check.ps1
