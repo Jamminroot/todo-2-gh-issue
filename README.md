@@ -77,5 +77,4 @@ void method() {
 
 Changing the contents of TODO comment will close existing issue and create new one.
 
-This Action is build while looking at alstr's great tool `todo-to-issue-action` (some changes were required for my specific case).
-Go check it out at `https://github.com/alstr/todo-to-issue-action`.
+This Action is build while looking at [Alstr's](https://github.com/alstr) great tool [todo-to-issue-action](https://github.com/alstr/todo-to-issue-action) (some changes were required for my specific case).
