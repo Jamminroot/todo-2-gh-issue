@@ -28,6 +28,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
               TRIM: ",: ()\""
               SYNTAX: "csharp"
               TIMEOUT: 1000
+              MAXSNIPPETLINES: 7
             id: "todo"
 
 > **Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if you need the default use case (running on the same repo when the push even occur, and comparing with the most recent commit)**
@@ -46,6 +47,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
 | `SYNTAX` | Syntax highlight for new issues created on gh. |
 | `TIMEOUT` | Delay between requests. |
+| `MAXSNIPPETLINES` | Maximum lines of code to include as snippet to issue. Note: start of the snippet is 2 lines above the line with // TODO. |
 
 Note that todo labels will only be compared if they follow matching comment pattern. 
 Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
