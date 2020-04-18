@@ -23,9 +23,10 @@ Create a workflow file in your .github/workflows/ directory as follows:
               NEW: ${{ github.sha }}
               TOKEN: ${{ secrets.GITHUB_TOKEN }}
               TODO: "TODO"
-              COMMENT: "\/\/"
+              COMMENT: "\\/\\/"
               LABEL: "TODO"
               TRIM: ",: ()\""
+              SYNTAX: "csharp"
               TIMEOUT: 1000
             id: "todo"
 
@@ -43,6 +44,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | `COMMENT` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
 | `LABEL` | Label to add to github issue. |
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
+| `SYNTAX` | Syntax highlight for new issues created on gh. |
 | `TIMEOUT` | Delay between requests. |
 
 Note that todo labels will only be compared if they follow matching comment pattern. 
