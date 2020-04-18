@@ -26,7 +26,7 @@ WORKDIR /app
 COPY *.csproj ./
 RUN dotnet restore
 COPY *.cs ./
-RUN dotnet publish --runtime alpine-x64 -c Release -o publish
-WORKDIR .
+RUN dotnet build -c Release -o out
 
-ENTRYPOINT ["dotnet", "./publish/todo-2-gh-issue.dll"]
+RUN ls -R
+ENTRYPOINT ["./out/todo-2-gh-issue"]
