@@ -117,10 +117,8 @@ namespace Todo2GhIssue
 			var todos = new List<TodoItem>();
 			var lineNumber = 0;
 			var currFile = "";
-			var currentDiffLineNum = 0;
 			foreach (var line in diff)
 			{
-				currentDiffLineNum++;
 				var headerMatch = Regex.Match(line, DiffHeaderPattern, RegexOptions.IgnoreCase);
 				if (headerMatch.Success) { currFile = headerMatch.Value; }
 				else
@@ -133,7 +131,6 @@ namespace Todo2GhIssue
 					}
 					else
 					{
-						lineNumber++;
 						var todoMatch = Regex.Match(line, TodoPatternStart.Replace(CommentPatternToken, commentPattern).Replace(TodoSignatureToken, todoSignature));
 						if (todoMatch.Success)
 						{
@@ -142,6 +139,7 @@ namespace Todo2GhIssue
 							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter,
 								todoType, repo, sha));
 						}
+						lineNumber++;
 					}
 				}
 			}
