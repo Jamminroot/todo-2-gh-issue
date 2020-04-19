@@ -12,6 +12,7 @@ using RestSharp;
 
 namespace Todo2GhIssue
 {
+
 	[DataContract]
 	internal class Issue
 	{
@@ -217,6 +218,13 @@ namespace Todo2GhIssue
 		private static void Main(string[] args)
 		{
 			Console.WriteLine("Parsing parameters.");
+			var ghEvEnvironmentVariable = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
+			var x = File.ReadAllLines(ghEvEnvironmentVariable);
+			foreach (var l in x)
+			{
+				Console.WriteLine(l);
+			}
+			Console.WriteLine();
 			var repo = Environment.GetEnvironmentVariable("INPUT_REPOSITORY") ?? Environment.GetEnvironmentVariable("GITHUB_REPOSITORY");
 			var newSha = Environment.GetEnvironmentVariable("INPUT_SHA") ?? Environment.GetEnvironmentVariable("GITHUB_SHA");
 			var oldSha = Environment.GetEnvironmentVariable("INPUT_BASE_SHA");
