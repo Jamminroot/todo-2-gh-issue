@@ -165,6 +165,7 @@ namespace Todo2GhIssue
 					}
 					else
 					{
+						
 						var todoMatch = Regex.Match(line, todoPattern);
 						if (todoMatch.Success)
 						{
@@ -181,7 +182,7 @@ namespace Todo2GhIssue
 							todos.Add(new TodoItem(title.Trim(), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter, todoType, repo, sha,
 								labels));
 						}
-						lineNumber++;
+						if (!line.StartsWith('-')) lineNumber++;
 					}
 				}
 			}
@@ -294,7 +295,6 @@ namespace Todo2GhIssue
 			Console.WriteLine("Timeout:\t{0}", timeout);
 			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
 			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
-			Console.WriteLine("Getting diff.");
 			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) ||
 			    string.IsNullOrWhiteSpace(token))
 			{
@@ -302,6 +302,7 @@ namespace Todo2GhIssue
 				Console.WriteLine("Aborting.");
 				Environment.Exit(1);
 			}
+			Console.WriteLine("Getting diff.");
 			var diff = GetDiff(repo, token, oldSha, newSha);
 			var todos = GetTodoItems(diff, repo, newSha, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
 				symbolsToTrim?.ToCharArray());
