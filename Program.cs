@@ -23,10 +23,10 @@ namespace Todo2GhIssue
 
 		[DataMember(Name = "repository")]
 		public Repository Repository;
-		
+
 		[DataMember(Name = "after")]
 		public string After;
-		
+
 		[DataMember(Name = "before")]
 		public string Before;
 	}
@@ -99,22 +99,9 @@ namespace Todo2GhIssue
 	internal static class Program
 	{
 		private const string ApiBase = @"https://api.github.com/repos/";
-		private const string CommentPatternToken = "{COMMENT_PATTERN}";
-		private const string TodoSignatureToken = "{TODO_SIGNATURE}";
 		private const string DiffHeaderPattern = @"(?<=diff\s--git\sa.*b.*).+";
 		private const string BlockStartPattern = @"((?<=^@@\s).+(?=\s@@))";
 		private const string LineNumPattern = @"(?<=\+).+";
-		
-		public static TodoDiffType LineDiffType(string line)
-		{
-			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
-			return line[0] switch
-			{
-				'+' => TodoDiffType.Addition,
-				'-' => TodoDiffType.Deletion,
-				_ => TodoDiffType.None
-			};
-		}
 
 		private static IEnumerable<Issue> GetActiveItems(string repo, string token)
 		{
@@ -246,6 +233,17 @@ namespace Todo2GhIssue
 			}
 		}
 
+		private static TodoDiffType LineDiffType(string line)
+		{
+			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
+			return line[0] switch
+			{
+				'+' => TodoDiffType.Addition,
+				'-' => TodoDiffType.Deletion,
+				_ => TodoDiffType.None
+			};
+		}
+
 		private static void Main(string[] args)
 		{
 			Console.WriteLine("Parsing parameters.");
@@ -256,7 +254,6 @@ namespace Todo2GhIssue
 			if (!string.IsNullOrWhiteSpace(ghEvEnvironmentVariable))
 			{
 				var eventData = File.ReadAllText(ghEvEnvironmentVariable);
-			
 				var ser = new DataContractJsonSerializer(typeof(GhEvent));
 				using var sr = new MemoryStream(Encoding.UTF8.GetBytes(eventData));
 				var githubEvent = (GhEvent) ser.ReadObject(sr);
@@ -264,15 +261,12 @@ namespace Todo2GhIssue
 				newSha = githubEvent.After;
 				repo = githubEvent.Repository.FullName;
 			}
-
 			var repoOverride = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
 			var newShaOverride = Environment.GetEnvironmentVariable("INPUT_SHA");
 			var oldShaOverride = Environment.GetEnvironmentVariable("INPUT_BASE_SHA");
-
 			if (!string.IsNullOrWhiteSpace(repoOverride)) repo = repoOverride;
 			if (!string.IsNullOrWhiteSpace(newShaOverride)) newSha = newShaOverride;
 			if (!string.IsNullOrWhiteSpace(oldShaOverride)) oldSha = oldShaOverride;
-			
 			var token = Environment.GetEnvironmentVariable("INPUT_TOKEN");
 			var todoPattern = Environment.GetEnvironmentVariable("INPUT_TODO_PATTERN");
 			var inlineLabelPattern = Environment.GetEnvironmentVariable("INPUT_LABELS_PATTERN");
@@ -299,7 +293,8 @@ namespace Todo2GhIssue
 			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
 			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
 			Console.WriteLine("Getting diff.");
-			if (string.IsNullOrWhiteSpace(repo) ||string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) || string.IsNullOrWhiteSpace(token))
+			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) ||
+			    string.IsNullOrWhiteSpace(token))
 			{
 				Console.WriteLine("Failed to parse required parameters (repository, SHAs of commits, token).");
 				Console.WriteLine("Aborting.");
