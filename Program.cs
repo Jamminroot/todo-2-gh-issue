@@ -139,7 +139,7 @@ namespace Todo2GhIssue
 						{
 							var todoType = LineDiffType(line);
 							if (todoType == TodoDiffType.None) continue;
-							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, lineNumber - linesBefore, lineNumber + linesAfter,
+							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter,
 								todoType, repo, sha));
 						}
 					}
@@ -208,9 +208,9 @@ namespace Todo2GhIssue
 			else { Console.WriteLine("No publishing result mode."); }
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout)) { timeout = 1000; }
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESBEFORE"), out var linesBefore)) { linesBefore = 3; }
-			linesBefore = Math.Clamp(linesBefore, 0, 7);
+			linesBefore = Math.Clamp(linesBefore, 0, 15);
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESAFTER"), out var linesAfter)) { linesAfter = 7; }
-			linesAfter = Math.Clamp(linesAfter, 0, 7);
+			linesAfter = Math.Clamp(linesAfter, 0, 15);
 			Console.WriteLine("Repository:\t{0}", repo);
 			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			Console.WriteLine("New SHA:\t{0}", newSha);
