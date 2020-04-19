@@ -136,8 +136,8 @@ namespace Todo2GhIssue
 						{
 							var todoType = LineDiffType(line);
 							if (todoType == TodoDiffType.None) continue;
-							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter,
-								todoType, repo, sha));
+							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0),
+								lineNumber + linesAfter, todoType, repo, sha));
 						}
 						lineNumber++;
 					}
@@ -212,7 +212,7 @@ namespace Todo2GhIssue
 			Console.WriteLine("Repository:\t{0}", repo);
 			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			Console.WriteLine("New SHA:\t{0}", newSha);
-			Console.WriteLine("Token:\t{0}", token?[0]+ Enumerable.Repeat('*', token.Length-2).ToString() + token?[token.Length - 1]);
+			Console.WriteLine("Token:\t{0}", token?[0] + Enumerable.Repeat('*', token.Length - 2).ToString() + token?[token.Length - 1]);
 			Console.WriteLine("TODO:\t{0}", todoLabel);
 			Console.WriteLine("Comment regular expression:\t{0}", commentPattern);
 			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
