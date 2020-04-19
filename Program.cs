@@ -75,7 +75,7 @@ namespace Todo2GhIssue
 			DiffType = type;
 			Labels = labels;
 			if (DiffType == TodoDiffType.Deletion) return;
-			Body = $"**{Title}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
+			Body = $"**{Title.TrimEnd()}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
 		public object RequestBody(string ghIssueLabel = "TODO")
@@ -251,15 +251,21 @@ namespace Todo2GhIssue
 		{
 			Console.WriteLine("Parsing parameters.");
 			var ghEvEnvironmentVariable = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
-			var eventData = File.ReadAllText(ghEvEnvironmentVariable);
+			var repo = "";
+			var newSha = "";
+			var oldSha = "";
+			if (!string.IsNullOrWhiteSpace(ghEvEnvironmentVariable))
+			{
+				var eventData = File.ReadAllText(ghEvEnvironmentVariable);
 			
-			var ser = new DataContractJsonSerializer(typeof(GhEvent));
-			using var sr = new MemoryStream(Encoding.UTF8.GetBytes(eventData));
-			var githubEvent = (GhEvent) ser.ReadObject(sr);
-			var oldSha = githubEvent.Before;
-			var newSha = githubEvent.After;
-			var repo = githubEvent.Repository.FullName;
-			
+				var ser = new DataContractJsonSerializer(typeof(GhEvent));
+				using var sr = new MemoryStream(Encoding.UTF8.GetBytes(eventData));
+				var githubEvent = (GhEvent) ser.ReadObject(sr);
+				oldSha = githubEvent.Before;
+				newSha = githubEvent.After;
+				repo = githubEvent.Repository.FullName;
+			}
+
 			var repoOverride = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
 			var newShaOverride = Environment.GetEnvironmentVariable("INPUT_SHA");
 			var oldShaOverride = Environment.GetEnvironmentVariable("INPUT_BASE_SHA");
