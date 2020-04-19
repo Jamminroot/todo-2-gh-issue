@@ -22,40 +22,40 @@ Create a workflow file in your .github/workflows/ directory as follows:
           - name: "TODO-2-GH-Issue"
             uses: "jamminroot/todo-2-gh-issue@master"
             with:
-              BASE_SHA: ${{ github.event.before }}
               TOKEN: ${{ secrets.GITHUB_TOKEN }}
               TODO: "TODO"
-              COMMENT: "\\/\\/"
-              LABEL: "TODO"
+              COMMENT_PATTERN: "\\/\\/"
+              GH_LABEL: "TODO"
               TRIM: ",: ()\""
-              SYNTAX: "csharp"
               TIMEOUT: 1000
-              LINESBEFORE: 2
-              LINESAFTER: 5
-              INLINELABELREGEX: "(?<=\[).+?(?=\])"
+              LINES_BEFORE: 2
+              LINES_AFTER: 5
+              LABELS_PATTERN: "(?<=\\[).+?(?=\\])"
+              LABELS_REPLACE_PATTERN: "\\[(.+?)\\]"
             id: "todo"
-
-> **Copy values for BASE_SHA and TOKEN from example, if you need the default use case (running on the same repo when the push even occur, and comparing with the most recent commit)**
+            
+> **Keep in mind that you have to escape slashes in regex when putting them to yml**
+> **Put `${{ secrets.GITHUB_TOKEN }}` as a value for TOKEN**
 
 ### Inputs
 
 | Input    | Description |
 |----------|-------------|
-| `BASE_SHA` | The SHA of the comparand commit. |
-| `TOKEN` | The GitHub access token to allow us to retrieve, create and update issues. |
+| `TOKEN` | The GitHub access token to allow us to get existing, create, update issues, comment on them. |
 | `TODO` | The label that will be used to identify TODO comments.|
-| `COMMENT` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
-| `LABEL` | Label to add to github issue. |
+| `COMMENT_PATTERN` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
+| `GH_LABEL` | Label to add to github issue. |
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
-| `SYNTAX` | Syntax highlight for new issues created on gh. |
 | `TIMEOUT` | Delay between requests. |
-| `LINESBEFORE` | How many lines above `// TODO` to include to snippet. |
-| `LINESAFTER` | How many lines after `// TODO` to include to snippet. |
-| `INLINELABELREGEX` | Regex to get and replace inlined labels. If empty, they will be left in todo. Default is text inside square brackets. |
+| `LINES_BEFORE` | How many lines above `// TODO` to include to snippet. |
+| `LINES_AFTER` | How many lines after `// TODO` to include to snippet. |
+| `LABELS_PATTERN` | Regex to parse inlined labels. If empty, they will be left in todo. Default is text inside square brackets. |
+| `LABELS_REPLACE_PATTERN` | Regex to replace inlined labels. Only works when LABELS_PATTERN provided. Default is text with square brackets. |
 
 
-Note that todo labels will only be compared if they follow matching comment pattern. 
-Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
+> Note that todo labels will only be compared if they follow matching comment pattern. 
+
+> Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
 
 ## Examples
 
