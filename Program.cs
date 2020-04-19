@@ -78,9 +78,10 @@ namespace Todo2GhIssue
 			Body = $"**{Title.TrimEnd()}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
-		public object RequestBody(string ghIssueLabel = "TODO")
+		public object RequestBody(string ghIssueLabel = "TODO", string pusher = "")
 		{
-			return new {title = Title, body = Body, labels = new[] {ghIssueLabel}};
+			Labels.Add(ghIssueLabel);
+			return new {title = Title, body = Body+"\n\n"+pusher, labels = Labels.ToArray()};
 		}
 
 		public override string ToString()
@@ -188,7 +189,7 @@ namespace Todo2GhIssue
 			return todos;
 		}
 
-		private static void HandleTodos(string repo, string token, string newSha, string ghIssueLabel, int timeout, IEnumerable<TodoItem> todos)
+		private static void HandleTodos(string repo, string pusher, string token, string newSha, string ghIssueLabel, int timeout, IEnumerable<TodoItem> todos)
 		{
 			var activeIssues = GetActiveItems(repo, token);
 			var deletions = todos.Where(t => t.DiffType == TodoDiffType.Deletion).ToList();
@@ -223,7 +224,7 @@ namespace Todo2GhIssue
 				var client = new RestClient($"{ApiBase}{repo}/issues?access_token={token}") {Timeout = -1};
 				var request = new RestRequest(Method.POST);
 				request.AddHeader("Accept", "application/json");
-				request.AddJsonBody(todoItem.RequestBody(ghIssueLabel));
+				request.AddJsonBody(todoItem.RequestBody(ghIssueLabel, pusher));
 				var response = client.Execute(request);
 				if (response.StatusCode != HttpStatusCode.Created)
 				{
@@ -251,6 +252,7 @@ namespace Todo2GhIssue
 			var repo = "";
 			var newSha = "";
 			var oldSha = "";
+			var pusher = "";
 			if (!string.IsNullOrWhiteSpace(ghEvEnvironmentVariable))
 			{
 				var eventData = File.ReadAllText(ghEvEnvironmentVariable);
@@ -260,6 +262,7 @@ namespace Todo2GhIssue
 				oldSha = githubEvent.Before;
 				newSha = githubEvent.After;
 				repo = githubEvent.Repository.FullName;
+				pusher = $"{(githubEvent.Forced?"Force-pushed":"Pushed")} by @{githubEvent.Pusher.Name} <{githubEvent.Pusher.Email}>";
 			}
 			var repoOverride = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
 			var newShaOverride = Environment.GetEnvironmentVariable("INPUT_SHA");
@@ -307,7 +310,7 @@ namespace Todo2GhIssue
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
 			Console.WriteLine("Parsed removed TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Deletion)) { Console.WriteLine($"-\t{todoItem}"); }
-			if (!nopublish) { HandleTodos(repo, token, newSha, ghIssueLabel, timeout, todos); }
+			if (!nopublish) { HandleTodos(repo, pusher, token, newSha, ghIssueLabel, timeout, todos); }
 			Console.WriteLine("Finished updating issues.");
 		}
 	}
