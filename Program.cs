@@ -30,14 +30,14 @@ namespace Todo2GhIssue
 		public string Title;
 		public TodoDiffType DiffType;
 
-		public TodoItem(string title, int line, string file, string snippet, TodoDiffType type, string repo, string sha)
+		public TodoItem(string title, int line, string file, int startLines, int endLine, TodoDiffType type, string repo, string sha)
 		{
 			Title = title;
 			Line = line;
 			File = file;
 			DiffType = type;
 			if (DiffType == TodoDiffType.Deletion) return;
-			Body = $"https://github.com/{repo}/blob/{sha}{file}#L{line}\n\n{snippet}";
+			Body = $"**{Title}**\n\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
 		public object RequestBody(string ghIssueLabel = "TODO")
@@ -57,8 +57,8 @@ namespace Todo2GhIssue
 		Addition,
 		Deletion
 	}
-	
-	static class Program
+
+	internal static class Program
 	{
 		private const string ApiBase = @"https://api.github.com/repos/";
 		private const string CommentPatternToken = "{COMMENT_PATTERN}";
@@ -66,9 +66,18 @@ namespace Todo2GhIssue
 		private const string DiffHeaderPattern = @"(?<=diff\s--git\sa.*b.*).+";
 		private const string BlockStartPattern = @"((?<=^@@\s).+(?=\s@@))";
 		private const string LineNumPattern = @"(?<=\+).+";
-		private const string AdditionPattern = @"(?<=^\+).*";
-		private const string DeletionPattern = @"(?<=^-).*";
 		private const string TodoPatternStart = @"(?<=" + CommentPatternToken + " ?" + TodoSignatureToken + "[ :]).+";
+
+		public static TodoDiffType LineDiffType(string line)
+		{
+			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
+			return line[0] switch
+			{
+				'+' => TodoDiffType.Addition,
+				'-' => TodoDiffType.Deletion,
+				_ => TodoDiffType.None
+			};
+		}
 
 		private static IEnumerable<Issue> GetActiveItems(string repo, string token)
 		{
@@ -87,16 +96,6 @@ namespace Todo2GhIssue
 			return result;
 		}
 
-		private static bool IsBlockStart(string line)
-		{
-			return Regex.Match(line, BlockStartPattern, RegexOptions.IgnoreCase).Success;
-		}
-
-		private static bool IsDiffHeader(string line)
-		{
-			return Regex.Match(line, DiffHeaderPattern, RegexOptions.IgnoreCase).Success;
-		}
-		
 		private static string[] GetDiff(string repo, string token, string oldSha, string newSha)
 		{
 			var client = new RestClient($"{ApiBase}{repo}/compare/{oldSha}...{newSha}?access_token={token}") {Timeout = -1};
@@ -111,37 +110,14 @@ namespace Todo2GhIssue
 			return response.Content.Split('\n');
 		}
 
-		private static string MakeSnippet(List<string> lines, string syntax)
-		{
-			return $"```{syntax}\n{string.Join('\n', lines)}\n```";
-		}
-
-		public static TodoDiffType LineDiffType(string line)
-		{
-			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
-			return line[0] switch
-			{
-				'+' => TodoDiffType.Addition,
-				'-' => TodoDiffType.Deletion,
-				_ => TodoDiffType.None
-			};
-		}
-
-		private static bool LineFitsSnippet(this TodoDiffType diffType, string line)
-		{
-			var otherLineType = LineDiffType(line);
-			return otherLineType == TodoDiffType.None || otherLineType == diffType;
-		}
-		
-		private static IList<TodoItem> GetTodoItems(string[] diff, string repo, string sha, string syntax, int snippetLines, string commentPattern = @"\/\/", string todoSignature = "TODO",
-			char[] trimSeparators = null)
+		private static IList<TodoItem> GetTodoItems(string[] diff, string repo, string sha, int linesBefore, int linesAfter, string commentPattern = @"\/\/",
+			string todoSignature = "TODO", char[] trimSeparators = null)
 		{
 			trimSeparators ??= new[] {' ', ':', ' ', '(', '"'};
 			var todos = new List<TodoItem>();
 			var lineNumber = 0;
 			var currFile = "";
 			var currentDiffLineNum = 0;
-			var blockStartLineNum = 0;
 			foreach (var line in diff)
 			{
 				currentDiffLineNum++;
@@ -152,7 +128,6 @@ namespace Todo2GhIssue
 					var blockStartMatch = Regex.Match(line, BlockStartPattern, RegexOptions.IgnoreCase);
 					if (blockStartMatch.Success)
 					{
-						blockStartLineNum = currentDiffLineNum;
 						var lineNumsMatch = Regex.Match(blockStartMatch.Value, LineNumPattern);
 						if (lineNumsMatch.Success) { lineNumber = int.Parse(lineNumsMatch.Groups[0].Value.Split(',')[0]); }
 					}
@@ -162,37 +137,10 @@ namespace Todo2GhIssue
 						var todoMatch = Regex.Match(line, TodoPatternStart.Replace(CommentPatternToken, commentPattern).Replace(TodoSignatureToken, todoSignature));
 						if (todoMatch.Success)
 						{
-
-							TodoDiffType todoType = LineDiffType(line);
-							if (todoType==TodoDiffType.None) continue;
-							if (todoType == TodoDiffType.Deletion)
-							{
-								todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, "", todoType, repo, sha));
-								continue;
-							}
-							var snippet = new List<string>();
-							var copyStartIndex = Math.Max(currentDiffLineNum - 2, blockStartLineNum);
-							var targetSnippetLines = snippetLines;
-							var copyEndIndex = Math.Min(copyStartIndex+targetSnippetLines, diff.Length - 1);
-							var minWhitespace = int.MaxValue;
-							for (var i = copyStartIndex; i < copyEndIndex; i++)
-							{
-								var l = diff[i].TrimStart(' ', '+');
-								
-								if (IsBlockStart(l) || IsDiffHeader(l) && i != copyStartIndex) break;
-								if (string.IsNullOrWhiteSpace(l))
-								{
-									targetSnippetLines++;
-									copyEndIndex = Math.Min(copyStartIndex+targetSnippetLines, diff.Length - 1);
-									continue;
-								}
-								if (!todoType.LineFitsSnippet(l)) { continue; }
-								var whitespace = l.Length - l.TrimStart('\t').Length;
-								if (whitespace < minWhitespace) minWhitespace = whitespace;
-								snippet.Add(l);
-							}
-							snippet = snippet.Select(l=>l.Substring(minWhitespace)).ToList();
-							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, MakeSnippet(snippet, syntax), todoType, repo, sha));
+							var todoType = LineDiffType(line);
+							if (todoType == TodoDiffType.None) continue;
+							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, lineNumber - linesBefore, lineNumber + linesAfter,
+								todoType, repo, sha));
 						}
 					}
 				}
@@ -249,33 +197,40 @@ namespace Todo2GhIssue
 		{
 			Console.WriteLine("Parsing parameters.");
 			var repo = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
-			Console.WriteLine("Repo:\t{0}", repo);
 			var oldSha = Environment.GetEnvironmentVariable("INPUT_OLD");
-			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			var newSha = Environment.GetEnvironmentVariable("INPUT_NEW");
-			Console.WriteLine("New SHA:\t{0}", newSha);
 			var token = Environment.GetEnvironmentVariable("INPUT_TOKEN");
-			Console.WriteLine("Token:\t{0}", "***" + token?.Substring(token.Length - 3));
 			var todoLabel = Environment.GetEnvironmentVariable("INPUT_TODO");
-			Console.WriteLine("TODO:\t{0}", todoLabel);
 			var commentPattern = Environment.GetEnvironmentVariable("INPUT_COMMENT");
-			Console.WriteLine("Comment re:\t{0}", commentPattern);
 			var ghIssueLabel = Environment.GetEnvironmentVariable("INPUT_LABEL");
-			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
 			var symbolsToTrim = Environment.GetEnvironmentVariable("INPUT_TRIM");
-			Console.WriteLine("Trim:\t{0}", symbolsToTrim);
-			var syntax = Environment.GetEnvironmentVariable("INPUT_SYNTAX");
-			Console.WriteLine("Syntax:\t{0}", syntax);
 			if (!bool.TryParse(Environment.GetEnvironmentVariable("INPUT_NOPUBLISH"), out var nopublish)) { nopublish = false; }
 			else { Console.WriteLine("No publishing result mode."); }
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout)) { timeout = 1000; }
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESBEFORE"), out var linesBefore)) { linesBefore = 3; }
+			linesBefore = Math.Clamp(linesBefore, 0, 7);
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESAFTER"), out var linesAfter)) { linesAfter = 7; }
+			linesAfter = Math.Clamp(linesAfter, 0, 7);
+			Console.WriteLine("Repository:\t{0}", repo);
+			Console.WriteLine("Old SHA:\t{0}", oldSha);
+			Console.WriteLine("New SHA:\t{0}", newSha);
+			Console.WriteLine("Token:\t{0}", token?[0]+ Enumerable.Repeat('*', token.Length-2).ToString() + token?[token.Length - 1]);
+			Console.WriteLine("TODO:\t{0}", todoLabel);
+			Console.WriteLine("Comment regular expression:\t{0}", commentPattern);
+			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
+			Console.WriteLine("Trim:\t{0}", symbolsToTrim);
 			Console.WriteLine("Timeout:\t{0}", timeout);
-			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_SNIPPETLINES"), out var snippetLines)) { snippetLines = 7; }
-			snippetLines = Math.Clamp(snippetLines, 0, 7);
-			Console.WriteLine("Lines of code to include to snippet:\t{0}", snippetLines);
+			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
+			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
 			Console.WriteLine("Getting diff.");
+			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) || string.IsNullOrWhiteSpace(token))
+			{
+				Console.WriteLine("Failed to parse required parameters (repository, SHAs of commits, token).");
+				Console.WriteLine("Aborting.");
+				Environment.Exit(1);
+			}
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, syntax, snippetLines, commentPattern, todoLabel, symbolsToTrim?.ToCharArray());
+			var todos = GetTodoItems(diff, repo, newSha, linesBefore, linesAfter, commentPattern, todoLabel, symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
 			Console.WriteLine("Parsed removed TODOs:");

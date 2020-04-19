@@ -2,6 +2,10 @@
 
 This action runs through your recent changes and closes all corresponding GitHub issues if relevant `TODO` comments were removed in a pushed commit, and converts all newly added TODO comments to GitHub issues.
 
+## Screenshot
+
+![Todo-2-gh-issue result](images/issue.png "Example issue")
+
 ## Usage
 
 Create a workflow file in your .github/workflows/ directory as follows:
@@ -28,7 +32,8 @@ Create a workflow file in your .github/workflows/ directory as follows:
               TRIM: ",: ()\""
               SYNTAX: "csharp"
               TIMEOUT: 1000
-              MAXSNIPPETLINES: 7
+              LINESBEFORE: 2
+              LINESAFTER: 5
             id: "todo"
 
 > **Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if you need the default use case (running on the same repo when the push even occur, and comparing with the most recent commit)**
@@ -47,7 +52,8 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
 | `SYNTAX` | Syntax highlight for new issues created on gh. |
 | `TIMEOUT` | Delay between requests. |
-| `MAXSNIPPETLINES` | Maximum lines of code to include as snippet to issue. Note: start of the snippet is 2 lines above the line with // TODO. |
+| `LINESBEFORE` | How many lines above `// TODO` to include to snippet. |
+| `LINESAFTER` | How many lines after `// TODO` to include to snippet. |
 
 Note that todo labels will only be compared if they follow matching comment pattern. 
 Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
