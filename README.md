@@ -25,16 +25,17 @@ Create a workflow file in your .github/workflows/ directory as follows:
               TOKEN: ${{ secrets.GITHUB_TOKEN }}
               TODO_PATTERN: "(?<=\\/\\/ ?TODO[ :]).+"
               GH_LABEL: "TODO"
-              TRIM: ",: ()\""
+              TRIM: ",: \""
               TIMEOUT: 1000
               LINES_BEFORE: 2
               LINES_AFTER: 5
               LABELS_PATTERN: "(?<=\\[).+?(?=\\])"
               LABELS_REPLACE_PATTERN: "\\[(.+?)\\]"
             id: "todo"
-            
-> **Keep in mind that you have to escape slashes in regex when putting them to yml**
-> **Put `${{ secrets.GITHUB_TOKEN }}` as a value for TOKEN**
+
+> **NOTE:** Keep in mind that you have to escape slashes in regex patterns when putting them to yml
+
+> **NOTE:** Put `${{ secrets.GITHUB_TOKEN }}` as a value for `TOKEN`
 
 ### Inputs
 
@@ -60,13 +61,13 @@ Create a workflow file in your .github/workflows/ directory as follows:
 ### Adding TODOs
 
 ```diff
-+// TODO Change method signature
++// TODO Change method signature [Easy]
 void method() {
 
 }
 ```
 
-This will create an issue called "Change method signature".
+This will create an issue called "Change method signature", and labelled [Easy] and with label provided in `yml`.
 
 ### Removing TODOs
 
@@ -83,14 +84,13 @@ Removing the `// TODO` comment will close the issue on push.
 
 ```diff
 -// TODO Change method signature
-+// TODO Change method signature to something more creative
++// TODO [Shower thoughts] Change method signature to something more creative
 void method() {
 
 }
 ```
 
-Changing the contents of TODO comment will close existing issue and create new one.
-
+Changing the contents of TODO comment will close existing issue and create new one labelled [Shower thoughts] with the label provided in `yml`.
 
 ### Thanks
 
