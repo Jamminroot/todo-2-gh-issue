@@ -78,9 +78,8 @@ namespace Todo2GhIssue
 			Body = $"**{Title.TrimEnd()}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
-		public object RequestBody(string ghIssueLabel = "TODO", string pusher = "")
+		public object RequestBody(string pusher = "")
 		{
-			Labels.Add(ghIssueLabel);
 			return new {title = Title, body = Body+"\n\n"+pusher, labels = Labels.ToArray()};
 		}
 
@@ -172,14 +171,14 @@ namespace Todo2GhIssue
 							var todoType = LineDiffType(line);
 							if (todoType == TodoDiffType.None) continue;
 							var labels = new List<string> {issueLabel};
-							var title = todoMatch.Value.Trim(trimSeparators).TrimEnd();
+							var title = todoMatch.Value.Trim(trimSeparators);
 							if (parseLabels)
 							{
 								var inlineLabels = GetLabels(line, inlineLabelPattern);
 								title = Regex.Replace(title, inlineLabelReplacePattern, "");
 								labels.AddRange(inlineLabels);
 							}
-							todos.Add(new TodoItem(title, lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter, todoType, repo, sha,
+							todos.Add(new TodoItem(title.Trim(), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter, todoType, repo, sha,
 								labels));
 						}
 						lineNumber++;
@@ -224,11 +223,11 @@ namespace Todo2GhIssue
 				var client = new RestClient($"{ApiBase}{repo}/issues?access_token={token}") {Timeout = -1};
 				var request = new RestRequest(Method.POST);
 				request.AddHeader("Accept", "application/json");
-				request.AddJsonBody(todoItem.RequestBody(ghIssueLabel, pusher));
+				request.AddJsonBody(todoItem.RequestBody(pusher));
 				var response = client.Execute(request);
 				if (response.StatusCode != HttpStatusCode.Created)
 				{
-					Console.WriteLine($"Failed to create GH issue for {todoItem}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}");
+					Console.WriteLine($"Failed to create GH issue for {todoItem}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}\nRequest:{request.Body.Value.ToString()}");
 					Environment.Exit(1);
 				}
 			}
