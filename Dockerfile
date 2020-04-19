@@ -30,22 +30,6 @@ RUN dotnet_sdk_version=3.1.201 \
     # Trigger first run experience by running arbitrary cmd
     && dotnet help
 
-# Install PowerShell global tool
-RUN powershell_version=7.0.0 \
-    && wget -O PowerShell.Linux.Alpine.$powershell_version.nupkg https://pwshtool.blob.core.windows.net/tool/$powershell_version/PowerShell.Linux.Alpine.$powershell_version.nupkg \
-    && powershell_sha512='afca5d8553d612e36d04597de14cdba9731442d567d25fb9b0f1451116f299f773b4f49b5be7d4d89e3e874eb43f8c062ae70c2ed1d620244a2a52ba443cf4cb' \
-    && echo "$powershell_sha512  PowerShell.Linux.Alpine.$powershell_version.nupkg" | sha512sum -c - \
-    && mkdir -p /usr/share/powershell \
-    && dotnet tool install --add-source / --tool-path /usr/share/powershell --version $powershell_version PowerShell.Linux.Alpine \
-    && dotnet nuget locals all --clear \
-    && rm PowerShell.Linux.Alpine.$powershell_version.nupkg \
-    && chmod 755 /usr/share/powershell/pwsh \
-    && ln -s /usr/share/powershell/pwsh /usr/bin/pwsh \
-    # To reduce image size, remove the copy nupkg that nuget keeps.
-    && find /usr/share/powershell -print | grep -i '.*[.]nupkg$' | xargs rm \
-    # Add ncurses-terminfo-base to resolve psreadline dependency
-    && apk add --no-cache ncurses-terminfo-base
-
 WORKDIR /app
 COPY *.csproj ./
 RUN dotnet restore
