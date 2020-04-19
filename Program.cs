@@ -104,8 +104,7 @@ namespace Todo2GhIssue
 		private const string DiffHeaderPattern = @"(?<=diff\s--git\sa.*b.*).+";
 		private const string BlockStartPattern = @"((?<=^@@\s).+(?=\s@@))";
 		private const string LineNumPattern = @"(?<=\+).+";
-		private const string TodoPatternStart = @"(?<=" + CommentPatternToken + " ?" + TodoSignatureToken + "[ :]).+";
-
+		
 		public static TodoDiffType LineDiffType(string line)
 		{
 			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
@@ -158,7 +157,7 @@ namespace Todo2GhIssue
 		}
 
 		private static IList<TodoItem> GetTodoItems(string[] diff, string repo, string sha, string inlineLabelPattern, string inlineLabelReplacePattern,
-			string issueLabel, int linesBefore, int linesAfter, string commentPattern = @"\/\/", string todoSignature = "TODO", char[] trimSeparators = null)
+			string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
 		{
 			var parseLabels = !string.IsNullOrWhiteSpace(inlineLabelPattern);
 			trimSeparators ??= new[] {' ', ':', ' ', '"'};
@@ -179,7 +178,7 @@ namespace Todo2GhIssue
 					}
 					else
 					{
-						var todoMatch = Regex.Match(line, TodoPatternStart.Replace(CommentPatternToken, commentPattern).Replace(TodoSignatureToken, todoSignature));
+						var todoMatch = Regex.Match(line, todoPattern);
 						if (todoMatch.Success)
 						{
 							var todoType = LineDiffType(line);
@@ -275,8 +274,7 @@ namespace Todo2GhIssue
 			if (!string.IsNullOrWhiteSpace(oldShaOverride)) oldSha = oldShaOverride;
 			
 			var token = Environment.GetEnvironmentVariable("INPUT_TOKEN");
-			var todoLabel = Environment.GetEnvironmentVariable("INPUT_TODO");
-			var commentPattern = Environment.GetEnvironmentVariable("INPUT_COMMENT_PATTERN");
+			var todoPattern = Environment.GetEnvironmentVariable("INPUT_TODO_PATTERN");
 			var inlineLabelPattern = Environment.GetEnvironmentVariable("INPUT_LABELS_PATTERN");
 			var inlineLabelReplacePattern = Environment.GetEnvironmentVariable("INPUT_LABELS_REPLACE_PATTERN");
 			var ghIssueLabel = Environment.GetEnvironmentVariable("INPUT_GH_LABEL");
@@ -292,8 +290,7 @@ namespace Todo2GhIssue
 			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			Console.WriteLine("New SHA:\t{0}", newSha);
 			Console.WriteLine("Token:\t{0}", token?[0] + string.Join("", Enumerable.Repeat('*', token.Length - 2)) + token?[^1]);
-			Console.WriteLine("TODO:\t{0}", todoLabel);
-			Console.WriteLine("Comment regular expression:\t{0}", commentPattern);
+			Console.WriteLine("TODO regular expression:\t{0}", todoPattern);
 			Console.WriteLine("Inline label regular expression:\t{0}", inlineLabelPattern);
 			Console.WriteLine("Inline label replace regular expression:\t{0}", inlineLabelReplacePattern);
 			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
@@ -302,14 +299,14 @@ namespace Todo2GhIssue
 			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
 			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
 			Console.WriteLine("Getting diff.");
-			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) || string.IsNullOrWhiteSpace(token))
+			if (string.IsNullOrWhiteSpace(repo) ||string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) || string.IsNullOrWhiteSpace(token))
 			{
 				Console.WriteLine("Failed to parse required parameters (repository, SHAs of commits, token).");
 				Console.WriteLine("Aborting.");
 				Environment.Exit(1);
 			}
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, commentPattern, todoLabel,
+			var todos = GetTodoItems(diff, repo, newSha, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
 				symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }

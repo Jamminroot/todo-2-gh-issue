@@ -23,8 +23,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
             uses: "jamminroot/todo-2-gh-issue@master"
             with:
               TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              TODO: "TODO"
-              COMMENT_PATTERN: "\\/\\/"
+              TODO_PATTERN: "(?<=\\/\\/ ?TODO[ :]).+"
               GH_LABEL: "TODO"
               TRIM: ",: ()\""
               TIMEOUT: 1000
@@ -42,8 +41,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | Input    | Description |
 |----------|-------------|
 | `TOKEN` | The GitHub access token to allow us to get existing, create, update issues, comment on them. |
-| `TODO` | The label that will be used to identify TODO comments.|
-| `COMMENT_PATTERN` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
+| `TODO_PATTERN` | Regex pattern used to identify TODO comment. Default is `(?<=\\/\\/ ?TODO[ :]).+` for `// TODO`. |
 | `GH_LABEL` | Label to add to github issue. |
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
 | `TIMEOUT` | Delay between requests. |
