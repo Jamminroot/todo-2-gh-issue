@@ -22,54 +22,52 @@ Create a workflow file in your .github/workflows/ directory as follows:
           - name: "TODO-2-GH-Issue"
             uses: "jamminroot/todo-2-gh-issue@master"
             with:
-              REPOSITORY: ${{ github.repository }}
-              OLD: ${{ github.event.before }}
-              NEW: ${{ github.sha }}
               TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              TODO: "TODO"
-              COMMENT: "\\/\\/"
-              LABEL: "TODO"
-              TRIM: ",: ()\""
-              SYNTAX: "csharp"
+              TODO_PATTERN: "(?<=\\/\\/ ?TODO[ :]).+"
+              GH_LABEL: "TODO"
+              TRIM: ",: \""
               TIMEOUT: 1000
-              LINESBEFORE: 2
-              LINESAFTER: 5
+              LINES_BEFORE: 2
+              LINES_AFTER: 5
+              LABELS_PATTERN: "(?<=\\[).+?(?=\\])"
+              LABELS_REPLACE_PATTERN: "\\[(.+?)\\]"
             id: "todo"
 
-> **Copy values for REPOSITORY, OLD, NEW, TOKEN from example, if you need the default use case (running on the same repo when the push even occur, and comparing with the most recent commit)**
+> **NOTE:** Keep in mind that you have to escape slashes in regex patterns when putting them to yml
+
+> **NOTE:** Put `${{ secrets.GITHUB_TOKEN }}` as a value for `TOKEN`
 
 ### Inputs
 
 | Input    | Description |
 |----------|-------------|
-| `REPOSITORY` | Repository which action will be used on, e.g. 'jamminroot/my-awesome-repo'. |
-| `OLD` | The SHA of the comparand commit. |
-| `NEW` | The SHA of the new commit we compare diff with. |
-| `TOKEN` | The GitHub access token to allow us to retrieve, create and update issues. |
-| `TODO` | The label that will be used to identify TODO comments.|
-| `COMMENT` | Regex pattern used to identify start of comment. (`\/\/` for C#'s `\\`). |
-| `LABEL` | Label to add to github issue. |
+| `TOKEN` | The GitHub access token to allow us to get existing, create, update issues, comment on them. |
+| `TODO_PATTERN` | Regex pattern used to identify TODO comment. Default is `(?<=\\/\\/ ?TODO[ :]).+` for `// TODO`. |
+| `GH_LABEL` | Label to add to github issue. |
 | `TRIM` | Set of characters (as a string) to be trimmed from resulting title. |
-| `SYNTAX` | Syntax highlight for new issues created on gh. |
 | `TIMEOUT` | Delay between requests. |
-| `LINESBEFORE` | How many lines above `// TODO` to include to snippet. |
-| `LINESAFTER` | How many lines after `// TODO` to include to snippet. |
+| `LINES_BEFORE` | How many lines above `// TODO` to include to snippet. |
+| `LINES_AFTER` | How many lines after `// TODO` to include to snippet. |
+| `LABELS_PATTERN` | Regex to parse inlined labels. If empty, they will be left in todo. Default is text inside square brackets. |
+| `LABELS_REPLACE_PATTERN` | Regex to replace inlined labels. Only works when LABELS_PATTERN provided. Default is text with square brackets. |
 
-Note that todo labels will only be compared if they follow matching comment pattern. 
-Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
+
+> Note that todo labels will only be compared if they follow matching comment pattern. 
+
+> Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
 
 ## Examples
 
 ### Adding TODOs
 
 ```diff
-+// TODO Change method signature
++// TODO Change method signature [Easy]
 void method() {
 
 }
 ```
 
-This will create an issue called "Change method signature".
+This will create an issue called "Change method signature", and labelled [Easy] and with label provided in `yml`.
 
 ### Removing TODOs
 
@@ -86,14 +84,13 @@ Removing the `// TODO` comment will close the issue on push.
 
 ```diff
 -// TODO Change method signature
-+// TODO Change method signature to something more creative
++// TODO [Shower thoughts] Change method signature to something more creative
 void method() {
 
 }
 ```
 
-Changing the contents of TODO comment will close existing issue and create new one.
-
+Changing the contents of TODO comment will close existing issue and create new one labelled [Shower thoughts] with the label provided in `yml`.
 
 ### Thanks
 

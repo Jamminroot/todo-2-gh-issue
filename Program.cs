@@ -13,6 +13,42 @@ using RestSharp;
 namespace Todo2GhIssue
 {
 	[DataContract]
+	public class GhEvent
+	{
+		[DataMember(Name = "forced")]
+		public bool Forced;
+
+		[DataMember(Name = "pusher")]
+		public Pusher Pusher;
+
+		[DataMember(Name = "repository")]
+		public Repository Repository;
+
+		[DataMember(Name = "after")]
+		public string After;
+
+		[DataMember(Name = "before")]
+		public string Before;
+	}
+
+	[DataContract]
+	public class Pusher
+	{
+		[DataMember(Name = "email")]
+		public string Email;
+
+		[DataMember(Name = "name")]
+		public string Name;
+	}
+
+	[DataContract]
+	public class Repository
+	{
+		[DataMember(Name = "full_name")]
+		public string FullName;
+	}
+
+	[DataContract]
 	internal class Issue
 	{
 		[DataMember(Name = "number")]
@@ -24,25 +60,28 @@ namespace Todo2GhIssue
 
 	internal class TodoItem
 	{
+		public IList<string> Labels;
 		public int Line;
 		public string Body;
 		public string File;
 		public string Title;
 		public TodoDiffType DiffType;
 
-		public TodoItem(string title, int line, string file, int startLines, int endLine, TodoDiffType type, string repo, string sha)
+		public TodoItem(string title, int line, string file, int startLines, int endLine, TodoDiffType type, string repo, string sha, IList<string> labels)
 		{
 			Title = title;
 			Line = line;
 			File = file;
 			DiffType = type;
+			Labels = labels;
 			if (DiffType == TodoDiffType.Deletion) return;
-			Body = $"**{Title}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
+			Body = $"**{Title.TrimEnd()}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
-		public object RequestBody(string ghIssueLabel = "TODO")
+		public object RequestBody(string ghIssueLabel = "TODO", string pusher = "")
 		{
-			return new {title = Title, body = Body, labels = new[] {ghIssueLabel}};
+			Labels.Add(ghIssueLabel);
+			return new {title = Title, body = Body+"\n\n"+pusher, labels = Labels.ToArray()};
 		}
 
 		public override string ToString()
@@ -61,23 +100,9 @@ namespace Todo2GhIssue
 	internal static class Program
 	{
 		private const string ApiBase = @"https://api.github.com/repos/";
-		private const string CommentPatternToken = "{COMMENT_PATTERN}";
-		private const string TodoSignatureToken = "{TODO_SIGNATURE}";
 		private const string DiffHeaderPattern = @"(?<=diff\s--git\sa.*b.*).+";
 		private const string BlockStartPattern = @"((?<=^@@\s).+(?=\s@@))";
 		private const string LineNumPattern = @"(?<=\+).+";
-		private const string TodoPatternStart = @"(?<=" + CommentPatternToken + " ?" + TodoSignatureToken + "[ :]).+";
-
-		public static TodoDiffType LineDiffType(string line)
-		{
-			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
-			return line[0] switch
-			{
-				'+' => TodoDiffType.Addition,
-				'-' => TodoDiffType.Deletion,
-				_ => TodoDiffType.None
-			};
-		}
 
 		private static IEnumerable<Issue> GetActiveItems(string repo, string token)
 		{
@@ -110,10 +135,20 @@ namespace Todo2GhIssue
 			return response.Content.Split('\n');
 		}
 
-		private static IList<TodoItem> GetTodoItems(string[] diff, string repo, string sha, int linesBefore, int linesAfter, string commentPattern = @"\/\/",
-			string todoSignature = "TODO", char[] trimSeparators = null)
+		private static IList<string> GetLabels(string line, string pattern)
 		{
-			trimSeparators ??= new[] {' ', ':', ' ', '(', '"'};
+			var labels = new List<string>();
+			var labelsMatch = Regex.Match(line, pattern);
+			if (!labelsMatch.Success) return labels;
+			foreach (Capture cap in labelsMatch.Captures) { labels.Add(cap.Value); }
+			return labels;
+		}
+
+		private static IList<TodoItem> GetTodoItems(string[] diff, string repo, string sha, string inlineLabelPattern, string inlineLabelReplacePattern,
+			string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
+		{
+			var parseLabels = !string.IsNullOrWhiteSpace(inlineLabelPattern);
+			trimSeparators ??= new[] {' ', ':', ' ', '"'};
 			var todos = new List<TodoItem>();
 			var lineNumber = 0;
 			var currFile = "";
@@ -131,13 +166,21 @@ namespace Todo2GhIssue
 					}
 					else
 					{
-						var todoMatch = Regex.Match(line, TodoPatternStart.Replace(CommentPatternToken, commentPattern).Replace(TodoSignatureToken, todoSignature));
+						var todoMatch = Regex.Match(line, todoPattern);
 						if (todoMatch.Success)
 						{
 							var todoType = LineDiffType(line);
 							if (todoType == TodoDiffType.None) continue;
-							todos.Add(new TodoItem(todoMatch.Value.Trim(trimSeparators), lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter,
-								todoType, repo, sha));
+							var labels = new List<string> {issueLabel};
+							var title = todoMatch.Value.Trim(trimSeparators).TrimEnd();
+							if (parseLabels)
+							{
+								var inlineLabels = GetLabels(line, inlineLabelPattern);
+								title = Regex.Replace(title, inlineLabelReplacePattern, "");
+								labels.AddRange(inlineLabels);
+							}
+							todos.Add(new TodoItem(title, lineNumber, currFile, Math.Max(lineNumber - linesBefore, 0), lineNumber + linesAfter, todoType, repo, sha,
+								labels));
 						}
 						lineNumber++;
 					}
@@ -146,7 +189,7 @@ namespace Todo2GhIssue
 			return todos;
 		}
 
-		private static void HandleTodos(string repo, string token, string newSha, string ghIssueLabel, int timeout, IEnumerable<TodoItem> todos)
+		private static void HandleTodos(string repo, string pusher, string token, string newSha, string ghIssueLabel, int timeout, IEnumerable<TodoItem> todos)
 		{
 			var activeIssues = GetActiveItems(repo, token);
 			var deletions = todos.Where(t => t.DiffType == TodoDiffType.Deletion).ToList();
@@ -181,7 +224,7 @@ namespace Todo2GhIssue
 				var client = new RestClient($"{ApiBase}{repo}/issues?access_token={token}") {Timeout = -1};
 				var request = new RestRequest(Method.POST);
 				request.AddHeader("Accept", "application/json");
-				request.AddJsonBody(todoItem.RequestBody(ghIssueLabel));
+				request.AddJsonBody(todoItem.RequestBody(ghIssueLabel, pusher));
 				var response = client.Execute(request);
 				if (response.StatusCode != HttpStatusCode.Created)
 				{
@@ -191,49 +234,83 @@ namespace Todo2GhIssue
 			}
 		}
 
+		private static TodoDiffType LineDiffType(string line)
+		{
+			if (string.IsNullOrWhiteSpace(line)) return TodoDiffType.None;
+			return line[0] switch
+			{
+				'+' => TodoDiffType.Addition,
+				'-' => TodoDiffType.Deletion,
+				_ => TodoDiffType.None
+			};
+		}
+
 		private static void Main(string[] args)
 		{
 			Console.WriteLine("Parsing parameters.");
-			var repo = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
-			var oldSha = Environment.GetEnvironmentVariable("INPUT_OLD");
-			var newSha = Environment.GetEnvironmentVariable("INPUT_NEW");
+			var ghEvEnvironmentVariable = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
+			var repo = "";
+			var newSha = "";
+			var oldSha = "";
+			var pusher = "";
+			if (!string.IsNullOrWhiteSpace(ghEvEnvironmentVariable))
+			{
+				var eventData = File.ReadAllText(ghEvEnvironmentVariable);
+				var ser = new DataContractJsonSerializer(typeof(GhEvent));
+				using var sr = new MemoryStream(Encoding.UTF8.GetBytes(eventData));
+				var githubEvent = (GhEvent) ser.ReadObject(sr);
+				oldSha = githubEvent.Before;
+				newSha = githubEvent.After;
+				repo = githubEvent.Repository.FullName;
+				pusher = $"{(githubEvent.Forced?"Force-pushed":"Pushed")} by @{githubEvent.Pusher.Name} <{githubEvent.Pusher.Email}>";
+			}
+			var repoOverride = Environment.GetEnvironmentVariable("INPUT_REPOSITORY");
+			var newShaOverride = Environment.GetEnvironmentVariable("INPUT_SHA");
+			var oldShaOverride = Environment.GetEnvironmentVariable("INPUT_BASE_SHA");
+			if (!string.IsNullOrWhiteSpace(repoOverride)) repo = repoOverride;
+			if (!string.IsNullOrWhiteSpace(newShaOverride)) newSha = newShaOverride;
+			if (!string.IsNullOrWhiteSpace(oldShaOverride)) oldSha = oldShaOverride;
 			var token = Environment.GetEnvironmentVariable("INPUT_TOKEN");
-			var todoLabel = Environment.GetEnvironmentVariable("INPUT_TODO");
-			var commentPattern = Environment.GetEnvironmentVariable("INPUT_COMMENT");
-			var ghIssueLabel = Environment.GetEnvironmentVariable("INPUT_LABEL");
+			var todoPattern = Environment.GetEnvironmentVariable("INPUT_TODO_PATTERN");
+			var inlineLabelPattern = Environment.GetEnvironmentVariable("INPUT_LABELS_PATTERN");
+			var inlineLabelReplacePattern = Environment.GetEnvironmentVariable("INPUT_LABELS_REPLACE_PATTERN");
+			var ghIssueLabel = Environment.GetEnvironmentVariable("INPUT_GH_LABEL");
 			var symbolsToTrim = Environment.GetEnvironmentVariable("INPUT_TRIM");
 			if (!bool.TryParse(Environment.GetEnvironmentVariable("INPUT_NOPUBLISH"), out var nopublish)) { nopublish = false; }
 			else { Console.WriteLine("No publishing result mode."); }
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout)) { timeout = 1000; }
-			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESBEFORE"), out var linesBefore)) { linesBefore = 3; }
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINES_BEFORE"), out var linesBefore)) { linesBefore = 3; }
 			linesBefore = Math.Clamp(linesBefore, 0, 15);
-			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINESAFTER"), out var linesAfter)) { linesAfter = 7; }
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINES_AFTER"), out var linesAfter)) { linesAfter = 7; }
 			linesAfter = Math.Clamp(linesAfter, 0, 15);
 			Console.WriteLine("Repository:\t{0}", repo);
 			Console.WriteLine("Old SHA:\t{0}", oldSha);
 			Console.WriteLine("New SHA:\t{0}", newSha);
-			Console.WriteLine("Token:\t{0}", token?[0]+ Enumerable.Repeat('*', token.Length-2).ToString() + token?[token.Length - 1]);
-			Console.WriteLine("TODO:\t{0}", todoLabel);
-			Console.WriteLine("Comment regular expression:\t{0}", commentPattern);
+			Console.WriteLine("Token:\t{0}", token?[0] + string.Join("", Enumerable.Repeat('*', token.Length - 2)) + token?[^1]);
+			Console.WriteLine("TODO regular expression:\t{0}", todoPattern);
+			Console.WriteLine("Inline label regular expression:\t{0}", inlineLabelPattern);
+			Console.WriteLine("Inline label replace regular expression:\t{0}", inlineLabelReplacePattern);
 			Console.WriteLine("GH Label:\t{0}", ghIssueLabel);
 			Console.WriteLine("Trim:\t{0}", symbolsToTrim);
 			Console.WriteLine("Timeout:\t{0}", timeout);
 			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
 			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
 			Console.WriteLine("Getting diff.");
-			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) || string.IsNullOrWhiteSpace(token))
+			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) ||
+			    string.IsNullOrWhiteSpace(token))
 			{
 				Console.WriteLine("Failed to parse required parameters (repository, SHAs of commits, token).");
 				Console.WriteLine("Aborting.");
 				Environment.Exit(1);
 			}
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, linesBefore, linesAfter, commentPattern, todoLabel, symbolsToTrim?.ToCharArray());
+			var todos = GetTodoItems(diff, repo, newSha, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
+				symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
 			Console.WriteLine("Parsed removed TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Deletion)) { Console.WriteLine($"-\t{todoItem}"); }
-			if (!nopublish) { HandleTodos(repo, token, newSha, ghIssueLabel, timeout, todos); }
+			if (!nopublish) { HandleTodos(repo, pusher, token, newSha, ghIssueLabel, timeout, todos); }
 			Console.WriteLine("Finished updating issues.");
 		}
 	}
