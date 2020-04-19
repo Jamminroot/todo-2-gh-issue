@@ -37,7 +37,7 @@ namespace Todo2GhIssue
 			File = file;
 			DiffType = type;
 			if (DiffType == TodoDiffType.Deletion) return;
-			Body = $"**{Title}**\n\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
+			Body = $"**{Title}**\n\nLine:{Line}\nhttps://github.com/{repo}/blob/{sha}{file}#L{startLines}-L{endLine}";
 		}
 
 		public object RequestBody(string ghIssueLabel = "TODO")
