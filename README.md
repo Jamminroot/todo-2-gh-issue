@@ -51,11 +51,11 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | `LINES_AFTER` | How many lines after `// TODO` to include to snippet. |
 | `LABELS_PATTERN` | Regex to parse inlined labels. If empty, they will be left in todo. Default is text inside square brackets. |
 | `LABELS_REPLACE_PATTERN` | Regex to replace inlined labels. Only works when LABELS_PATTERN provided. Default is text with square brackets. |
-| `IGNORED_LINES_LENGTH` | Maximum length of diff line to be processed by action. Useful for binary data (e.g. Unity repos). Ignored if 0 |
+| `IGNORED_LINES_LENGTH` | Maximum length of diff line to be processed by action. Useful for binary data (e.g. Unity repos). Ignored if 0. |
 
-> Note that todo labels will only be compared if they follow matching comment pattern. 
-
-> Resulting regex with default C# values (e.g. `// TODO This is a comment`, where comment pattern is `\/\/` and TODO label is `TODO`) would be `(?<=\/\/?TODO[ :]).+`.
+> **NOTE:** Todo labels will only be compared if they follow matching comment pattern.
+ 
+> **NOTE:** For repositories with binary data consider using `IGNORED_LINES_LENGTH` to avoid regex getting stuck on processing long lines.
 
 ## Examples
 
@@ -68,7 +68,7 @@ void method() {
 }
 ```
 
-This will create an issue called "Change method signature", and labelled [Easy] and with label provided in `yml`.
+This will create an issue with the title `Change method signature` with two labels: [Easy] and the one provided in `yml`.
 
 ### Removing TODOs
 
@@ -81,6 +81,8 @@ void method() {
 
 Removing the `// TODO` comment will close the issue on push.
 
+> **NOTE:** Labels, filenames, issue bodies' contents and line numbers are ignored when parsing existing issues.
+
 ### Updating TODOs
 
 ```diff
@@ -91,9 +93,8 @@ void method() {
 }
 ```
 
-Changing the contents of TODO comment will close existing issue and create new one labelled [Shower thoughts] with the label provided in `yml`.
+Changing the contents of TODO comment will close existing issue (`Change method signature`) and create new one (`Change method signature to something more creative`) labelled with 2 labels: [Shower thoughts] and label provided in `yml`.
 
 ### Thanks
 
-This Action is build while looking at [Alstr's](https://github.com/alstr) great tool [todo-to-issue-action](https://github.com/alstr/todo-to-issue-action) (some changes were required for my specific case), so huge thanks to him!
-Go check his tool out, too.
+I started creating this action while looking at [Alstr's](https://github.com/alstr) great tool [todo-to-issue-action](https://github.com/alstr/todo-to-issue-action), go check his tool out, too.
