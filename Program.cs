@@ -142,7 +142,7 @@ namespace Todo2GhIssue
 			return labels;
 		}
 
-		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, string inlineLabelPattern, string inlineLabelReplacePattern,
+		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, int skipLinesLongerThan, string inlineLabelPattern, string inlineLabelReplacePattern,
 			string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
 		{
 			var parseLabels = !string.IsNullOrWhiteSpace(inlineLabelPattern);
@@ -152,6 +152,11 @@ namespace Todo2GhIssue
 			var currFile = "";
 			foreach (var line in diff)
 			{
+				if (skipLinesLongerThan > 0 && line.Length > skipLinesLongerThan)
+				{
+					if (!line.StartsWith('-')) lineNumber++;
+					continue;
+				}
 				var headerMatch = Regex.Match(line, DiffHeaderPattern, RegexOptions.IgnoreCase);
 				if (headerMatch.Success) { currFile = headerMatch.Value; }
 				else
@@ -278,6 +283,9 @@ namespace Todo2GhIssue
 			if (!bool.TryParse(Environment.GetEnvironmentVariable("INPUT_NOPUBLISH"), out var nopublish)) { nopublish = false; }
 			else { Console.WriteLine("No publishing result mode."); }
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_TIMEOUT"), out var timeout)) { timeout = 1000; }
+			timeout = Math.Max(0, timeout);
+			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_IGNORED_LINES_LENGTH"), out var skipLinesLongerThan)) { skipLinesLongerThan = 0; }
+			skipLinesLongerThan = Math.Max(0, skipLinesLongerThan);
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINES_BEFORE"), out var linesBefore)) { linesBefore = 3; }
 			linesBefore = Math.Clamp(linesBefore, 0, 15);
 			if (!int.TryParse(Environment.GetEnvironmentVariable("INPUT_LINES_AFTER"), out var linesAfter)) { linesAfter = 7; }
@@ -294,6 +302,7 @@ namespace Todo2GhIssue
 			Console.WriteLine("Timeout:\t{0}", timeout);
 			Console.WriteLine("Lines of code before todo to include to snippet:\t{0}", linesBefore);
 			Console.WriteLine("Lines of code after todo to include to snippet:\t{0}", linesAfter);
+			Console.WriteLine("Maximum length of line to be processed:\t{0}", skipLinesLongerThan);
 			if (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(todoPattern) || string.IsNullOrWhiteSpace(oldSha) || string.IsNullOrWhiteSpace(newSha) ||
 			    string.IsNullOrWhiteSpace(token))
 			{
@@ -303,7 +312,7 @@ namespace Todo2GhIssue
 			}
 			Console.WriteLine("Getting diff.");
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
+			var todos = GetTodoItems(diff, repo, newSha, skipLinesLongerThan, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
 				symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }

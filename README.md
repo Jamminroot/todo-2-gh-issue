@@ -31,6 +31,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
               LINES_AFTER: 5
               LABELS_PATTERN: "(?<=\\[).+?(?=\\])"
               LABELS_REPLACE_PATTERN: "\\[(.+?)\\]"
+              IGNORED_LINES_LENGTH: 255
             id: "todo"
 
 > **NOTE:** Keep in mind that you have to escape slashes in regex patterns when putting them to yml
@@ -50,7 +51,7 @@ Create a workflow file in your .github/workflows/ directory as follows:
 | `LINES_AFTER` | How many lines after `// TODO` to include to snippet. |
 | `LABELS_PATTERN` | Regex to parse inlined labels. If empty, they will be left in todo. Default is text inside square brackets. |
 | `LABELS_REPLACE_PATTERN` | Regex to replace inlined labels. Only works when LABELS_PATTERN provided. Default is text with square brackets. |
-
+| `IGNORED_LINES_LENGTH` | Maximum length of diff line to be processed by action. Useful for binary data (e.g. Unity repos). Ignored if 0 |
 
 > Note that todo labels will only be compared if they follow matching comment pattern. 
 
