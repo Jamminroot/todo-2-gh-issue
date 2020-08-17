@@ -84,7 +84,7 @@ namespace Todo2GhIssue
 
 		public override string ToString()
 		{
-			return $"{Title} @ {_file}:{_line}";
+			return $"{Title} @ {_file}:{_line} (Labels: {string.Join(", ", _labels)})";
 		}
 	}
 
@@ -119,7 +119,7 @@ namespace Todo2GhIssue
 			return result;
 		}
 
-		private static string[] GetDiff(string repo, string token, string oldSha, string newSha)
+		private static IEnumerable<string> GetDiff(string repo, string token, string oldSha, string newSha)
 		{
 			var client = new RestClient($"{ApiBase}{repo}/compare/{oldSha}...{newSha}?access_token={token}") {Timeout = -1};
 			var request = new RestRequest(Method.GET);
@@ -127,23 +127,22 @@ namespace Todo2GhIssue
 			var response = client.Execute(request);
 			if (response.StatusCode != HttpStatusCode.OK)
 			{
-				Console.WriteLine($"Failed to get diff.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}");
+				Console.WriteLine($"Failed to get diff: {response.Content} - {response.StatusDescription} ({response.StatusCode})");
 				Environment.Exit(1);
 			}
 			return response.Content.Split('\n');
 		}
 
-		private static IList<string> GetLabels(string line, string pattern)
+		private static IEnumerable<string> GetLabels(string line, string pattern)
 		{
 			var labels = new List<string>();
-			var labelsMatch = Regex.Match(line, pattern);
-			if (!labelsMatch.Success) return labels;
-			foreach (Capture cap in labelsMatch.Captures) { labels.Add(cap.Value); }
+			var labelsMatches = Regex.Matches(line, pattern);
+			labels.AddRange(labelsMatches.Select(cap => cap.Value));
 			return labels;
 		}
 
-		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, int skipLinesLongerThan, string inlineLabelPattern, string inlineLabelReplacePattern,
-			string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
+		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, int skipLinesLongerThan, string inlineLabelPattern,
+			string inlineLabelReplacePattern, string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
 		{
 			var parseLabels = !string.IsNullOrWhiteSpace(inlineLabelPattern);
 			trimSeparators ??= new[] {' ', ':', ' ', '"'};
@@ -199,8 +198,9 @@ namespace Todo2GhIssue
 			var additions = todos.Where(t => t.DiffType == TodoDiffType.Addition).ToList();
 			foreach (var number in activeIssues.Where(i => deletions.Select(d => d.Title).Contains(i.Title)).Select(i => i.Number))
 			{
-				var client = new RestClient($"{ApiBase}{repo}/issues/{number}?access_token={token}") {Timeout = -1};
+				var client = new RestClient($"{ApiBase}{repo}/issues/{number}") {Timeout = -1};
 				var request = new RestRequest(Method.PATCH);
+				request.AddHeader("Authorization", $"token {token}");
 				request.AddHeader("Accept", "application/json");
 				request.AddJsonBody(new {state = "closed"});
 				var response = client.Execute(request);
@@ -219,6 +219,10 @@ namespace Todo2GhIssue
 					Console.WriteLine($"Failed to post GH comment for issue #{number}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}");
 					Environment.Exit(1);
 				}
+				else
+				{
+					Console.WriteLine($"Closed issue #{number}");
+				}
 				Thread.Sleep(timeout);
 			}
 			foreach (var todoItem in additions)
@@ -235,6 +239,7 @@ namespace Todo2GhIssue
 						$"Failed to create GH issue for {todoItem}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}\nRequest:{request.Body.Value}");
 					Environment.Exit(1);
 				}
+				else { Console.WriteLine($"Created new issue #{todoItem.Title}"); }
 			}
 		}
 
@@ -312,8 +317,8 @@ namespace Todo2GhIssue
 			}
 			Console.WriteLine("Getting diff.");
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, skipLinesLongerThan, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
-				symbolsToTrim?.ToCharArray());
+			var todos = GetTodoItems(diff, repo, newSha, skipLinesLongerThan, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter,
+				todoPattern, symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
 			Console.WriteLine("Parsed removed TODOs:");
