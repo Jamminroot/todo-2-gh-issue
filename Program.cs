@@ -84,7 +84,7 @@ namespace Todo2GhIssue
 
 		public override string ToString()
 		{
-			return $"{Title} @ {_file}:{_line}";
+			return $"{Title} @ {_file}:{_line} (Labels: {string.Join(',', _labels)})";
 		}
 	}
 
@@ -127,7 +127,7 @@ namespace Todo2GhIssue
 			var response = client.Execute(request);
 			if (response.StatusCode != HttpStatusCode.OK)
 			{
-				Console.WriteLine($"Failed to get diff.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}");
+				Console.WriteLine($"Failed to get diff: {response.Content} - {response.StatusDescription} ({response.StatusCode})");
 				Environment.Exit(1);
 			}
 			return response.Content.Split('\n');
