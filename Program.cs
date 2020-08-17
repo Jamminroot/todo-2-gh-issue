@@ -119,7 +119,7 @@ namespace Todo2GhIssue
 			return result;
 		}
 
-		private static string[] GetDiff(string repo, string token, string oldSha, string newSha)
+		private static IEnumerable<string> GetDiff(string repo, string token, string oldSha, string newSha)
 		{
 			var client = new RestClient($"{ApiBase}{repo}/compare/{oldSha}...{newSha}?access_token={token}") {Timeout = -1};
 			var request = new RestRequest(Method.GET);
@@ -133,7 +133,7 @@ namespace Todo2GhIssue
 			return response.Content.Split('\n');
 		}
 
-		private static IList<string> GetLabels(string line, string pattern)
+		private static IEnumerable<string> GetLabels(string line, string pattern)
 		{
 			var labels = new List<string>();
 			var labelsMatch = Regex.Match(line, pattern);
@@ -142,8 +142,8 @@ namespace Todo2GhIssue
 			return labels;
 		}
 
-		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, int skipLinesLongerThan, string inlineLabelPattern, string inlineLabelReplacePattern,
-			string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
+		private static IList<TodoItem> GetTodoItems(IEnumerable<string> diff, string repo, string sha, int skipLinesLongerThan, string inlineLabelPattern,
+			string inlineLabelReplacePattern, string issueLabel, int linesBefore, int linesAfter, string todoPattern = @"\/\/ TODO", char[] trimSeparators = null)
 		{
 			var parseLabels = !string.IsNullOrWhiteSpace(inlineLabelPattern);
 			trimSeparators ??= new[] {' ', ':', ' ', '"'};
@@ -220,6 +220,10 @@ namespace Todo2GhIssue
 					Console.WriteLine($"Failed to post GH comment for issue #{number}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}");
 					Environment.Exit(1);
 				}
+				else
+				{
+					Console.WriteLine($"Closed issue #{number}");
+				}
 				Thread.Sleep(timeout);
 			}
 			foreach (var todoItem in additions)
@@ -236,6 +240,7 @@ namespace Todo2GhIssue
 						$"Failed to create GH issue for {todoItem}.\n{response.Content}\n{response.StatusCode}\n{response.StatusDescription}\nRequest:{request.Body.Value}");
 					Environment.Exit(1);
 				}
+				else { Console.WriteLine($"Created new issue #{todoItem.Title}"); }
 			}
 		}
 
@@ -313,8 +318,8 @@ namespace Todo2GhIssue
 			}
 			Console.WriteLine("Getting diff.");
 			var diff = GetDiff(repo, token, oldSha, newSha);
-			var todos = GetTodoItems(diff, repo, newSha, skipLinesLongerThan, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter, todoPattern,
-				symbolsToTrim?.ToCharArray());
+			var todos = GetTodoItems(diff, repo, newSha, skipLinesLongerThan, inlineLabelPattern, inlineLabelReplacePattern, ghIssueLabel, linesBefore, linesAfter,
+				todoPattern, symbolsToTrim?.ToCharArray());
 			Console.WriteLine("Parsed new TODOs:");
 			foreach (var todoItem in todos.Where(t => t.DiffType == TodoDiffType.Addition)) { Console.WriteLine($"+\t{todoItem}"); }
 			Console.WriteLine("Parsed removed TODOs:");
