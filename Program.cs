@@ -199,8 +199,9 @@ namespace Todo2GhIssue
 			var additions = todos.Where(t => t.DiffType == TodoDiffType.Addition).ToList();
 			foreach (var number in activeIssues.Where(i => deletions.Select(d => d.Title).Contains(i.Title)).Select(i => i.Number))
 			{
-				var client = new RestClient($"{ApiBase}{repo}/issues/{number}?access_token={token}") {Timeout = -1};
+				var client = new RestClient($"{ApiBase}{repo}/issues/{number}") {Timeout = -1};
 				var request = new RestRequest(Method.PATCH);
+				request.AddHeader("Authorization", $"token {token}");
 				request.AddHeader("Accept", "application/json");
 				request.AddJsonBody(new {state = "closed"});
 				var response = client.Execute(request);
