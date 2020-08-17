@@ -84,7 +84,7 @@ namespace Todo2GhIssue
 
 		public override string ToString()
 		{
-			return $"{Title} @ {_file}:{_line} (Labels: {string.Join(',', _labels)})";
+			return $"{Title} @ {_file}:{_line} (Labels: {string.Join(", ", _labels)})";
 		}
 	}
 
@@ -136,9 +136,8 @@ namespace Todo2GhIssue
 		private static IEnumerable<string> GetLabels(string line, string pattern)
 		{
 			var labels = new List<string>();
-			var labelsMatch = Regex.Match(line, pattern);
-			if (!labelsMatch.Success) return labels;
-			foreach (Capture cap in labelsMatch.Captures) { labels.Add(cap.Value); }
+			var labelsMatches = Regex.Matches(line, pattern);
+			labels.AddRange(labelsMatches.Select(cap => cap.Value));
 			return labels;
 		}
 
