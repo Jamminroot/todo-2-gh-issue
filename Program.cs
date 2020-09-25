@@ -166,7 +166,7 @@ namespace Todo2GhIssue
                 var headerMatch = Regex.Match(line, DiffHeaderPattern, RegexOptions.IgnoreCase);
                 if (headerMatch.Success)
                 {
-                    currFile = Regex.Matches(headerMatch.Value, @"(?<=)e\/.+ b(\/.*)$")[0].Groups[1].Value;
+                    currFile = Regex.Matches(headerMatch.Value, @"(?<=)\/.+ b(\/.*)$")[0].Groups[1].Value;
                 }
                 else if (!string.IsNullOrWhiteSpace(currFile))
                 {
